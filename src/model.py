@@ -129,13 +129,16 @@ class GATDecoder(nn.Module):
         Dropout rate cho attention.
     """
 
-    def __init__(self, in_channels: int, out_channels: int,
+    def __init__(self, in_channels: int, hidden_channels: int, out_channels: int,
                  heads: int = 1, dropout_attn: float = 0.1):
         super().__init__()
         
-        # Lớp GATConv (từ m chiều tái tạo lại đặc trưng gốc d trực tiếp)
+        # 1. Lớp chiếu Linear (từ m chiều về hidden_channels chiều)
+        self.encoder_to_decoder = nn.Linear(in_channels, hidden_channels, bias=False)
+        
+        # 2. Lớp GATConv (từ hidden_channels tái tạo lại đặc trưng gốc d)
         self.gat = GATConv(
-            in_channels=in_channels,
+            in_channels=hidden_channels,
             out_channels=out_channels,
             heads=heads,
             dropout=dropout_attn,
@@ -158,7 +161,8 @@ class GATDecoder(nn.Module):
         torch.Tensor, shape (n, d)
             Node features được tái tạo.
         """
-        return self.gat(z, edge_index)  # Không có non-linear activation
+        h = self.encoder_to_decoder(z)
+        return self.gat(h, edge_index)  # Không có non-linear activation
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -323,6 +327,7 @@ class MaskedGraphAutoencoder(nn.Module):
 
         self.decoder = GATDecoder(
             in_channels=out_channels,          # 512
+            hidden_channels=hidden_channels,   # 128
             out_channels=in_channels,          # d (feature gốc)
             heads=1,
             dropout_attn=dropout_attn
