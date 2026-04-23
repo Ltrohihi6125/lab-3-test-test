@@ -72,9 +72,9 @@ class GATEncoder(nn.Module):
         self.gat2 = GATConv(
             in_channels=hidden_channels * heads,
             out_channels=out_channels,
-            heads=heads,
+            heads=1,
             dropout=dropout_attn,
-            concat=True  # concatenate, output: out_channels
+            concat=False  # BẮT BUỘC không concatenate để output ra đúng 512 chiều
         )
 
         self.prelu1 = nn.PReLU()
