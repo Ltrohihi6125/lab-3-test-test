@@ -9,6 +9,7 @@ import os
 import torch
 from torch_geometric.datasets import Planetoid, AttributedGraphDataset
 from torch_geometric.data import Data
+from torch_geometric.transforms import NormalizeFeatures
 
 
 # ──────────────────────────────────────────────
