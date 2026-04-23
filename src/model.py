@@ -68,13 +68,13 @@ class GATEncoder(nn.Module):
             concat=True  # concatenate heads => output: hidden_channels * heads
         )
 
-        # Lớp GAT 2: hidden_channels * heads -> out_channels (single head)
+        # Lớp GAT 2: hidden_channels * heads -> hidden_channels * heads
         self.gat2 = GATConv(
             in_channels=hidden_channels * heads,
-            out_channels=out_channels,
-            heads=1,
+            out_channels=hidden_channels,
+            heads=heads,
             dropout=dropout_attn,
-            concat=False  # BẮT BUỘC không concatenate để output ra đúng 512 chiều
+            concat=True  # concatenate, output: hidden_channels * heads
         )
 
         self.prelu1 = nn.PReLU()
@@ -129,11 +129,16 @@ class GATDecoder(nn.Module):
         Dropout rate cho attention.
     """
 
-    def __init__(self, in_channels: int, out_channels: int,
+    def __init__(self, in_channels: int, hidden_channels: int, out_channels: int,
                  heads: int = 1, dropout_attn: float = 0.1):
         super().__init__()
+        
+        # 1. Lớp chiếu Linear (từ m chiều về hidden_channels chiều)
+        self.encoder_to_decoder = nn.Linear(in_channels, hidden_channels, bias=False)
+        
+        # 2. Lớp GATConv (từ hidden_channels tái tạo lại đặc trưng gốc d)
         self.gat = GATConv(
-            in_channels=in_channels,
+            in_channels=hidden_channels,
             out_channels=out_channels,
             heads=heads,
             dropout=dropout_attn,
@@ -156,7 +161,8 @@ class GATDecoder(nn.Module):
         torch.Tensor, shape (n, d)
             Node features được tái tạo.
         """
-        return self.gat(z, edge_index)  # Không có non-linear activation
+        h = self.encoder_to_decoder(z)
+        return self.gat(h, edge_index)  # Không có non-linear activation
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -320,8 +326,9 @@ class MaskedGraphAutoencoder(nn.Module):
         )
 
         self.decoder = GATDecoder(
-            in_channels=out_channels,
-            out_channels=in_channels,
+            in_channels=hidden_channels * heads,  # 128 * 4 = 512
+            hidden_channels=hidden_channels,      # 128
+            out_channels=in_channels,             # d (feature gốc)
             heads=1,
             dropout_attn=dropout_attn
         )
